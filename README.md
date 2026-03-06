@@ -2,11 +2,12 @@
 
 ## Overview
 
-This document covers all bug fixes, security improvements, and enhancements made to the application.
+This document covers all bug fixes, security improvements, and enhancements made to the web pages.
 
 ---
 
 ## Functional Bugs
+These bugs are discovered through interacting with the different features of the webpage.
 
 ### Bug 1: Invalid `next/image` src hostname for Amazon CDN
 
@@ -16,7 +17,7 @@ This document covers all bug fixes, security improvements, and enhancements made
 
 **Root cause:** `next.config.ts` only allowlisted `m.media-amazon.com`. Some products use `images-na.ssl-images-amazon.com` as their image CDN, which was not in `remotePatterns`.
 
-**Fix:** Added `images-na.ssl-images-amazon.com` to the `remotePatterns` array in `next.config.ts`.
+**Fix:** Added `images-na.ssl-images-amazon.com` to the `remotePatterns` array in `next.config.ts`. Next.js requires explicit allowlisting to prevent the image optimization endpoint from being abused as an open proxy. Minimal change, no application logic touched.
 
 ---
 
@@ -70,7 +71,29 @@ Optional chaining short-circuits to `undefined` when the left-hand value is null
 
 ---
 
+### Bug 5: Fetch calls missing error handling and race condition protection
+
+**File:** `app/page.tsx`
+
+- **Error handling:** All four fetch calls had no `.catch`, leaving loading spinners stuck permanently on network failure.
+- **Race condition:** The products and subcategories `useEffect` fetches could return out of order when filters changed rapidly (e.g. typing in the search bar), causing stale results to overwrite fresh ones.
+
+**Fixes applied:**
+
+| Fetch | Error handling | Race condition |
+|---|---|---|
+| Categories | `.catch(() => setCategories([]))` | n/a — runs once |
+| Subcategories | `.catch` clears subcategories | `AbortController` cancels on category change |
+| Products (`useEffect`) | `.catch` clears loading state | `AbortController` cancels on filter change |
+| `handleLoadMore` | `.catch` clears loading state | n/a — button disabled during load |
+
+`AbortController` is used in the two effects with reactive dependencies. The cleanup function (`return () => controller.abort()`) cancels the in-flight request each time the effect re-runs, ensuring only the latest response is applied.
+
+---
+
 ## UX Bugs
+These bugs are discovered through interacting with the different features of the webpage.
+
 
 ### Bug 5: "Clear Filters" does not reset dropdown display
 
@@ -90,6 +113,7 @@ Passing `""` keeps the component controlled at all times. Since no `<SelectItem>
 ---
 
 ## Security Vulnerabilities
+These bugs are discovered through examining api calls in fetching product information and how the webpage is consuming JSON objects.
 
 ### Security Fix 1: Unbounded `limit` parameter
 

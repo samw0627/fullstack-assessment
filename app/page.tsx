@@ -51,21 +51,26 @@ export default function Home() {
   useEffect(() => {
     fetch("/api/categories")
       .then((res) => res.json())
-      .then((data) => setCategories(data.categories));
+      .then((data) => setCategories(data.categories))
+      .catch(() => setCategories([]));
   }, []);
 
   useEffect(() => {
+    const controller = new AbortController();
     setSelectedSubCategory(undefined);
     if (selectedCategory) {
-      fetch(`/api/subcategories?category=${encodeURIComponent(selectedCategory)}`)
+      fetch(`/api/subcategories?category=${encodeURIComponent(selectedCategory)}`, { signal: controller.signal })
         .then((res) => res.json())
-        .then((data) => setSubCategories(data.subCategories));
+        .then((data) => setSubCategories(data.subCategories))
+        .catch((err) => { if (err.name !== "AbortError") setSubCategories([]); });
     } else {
       setSubCategories([]);
     }
+    return () => controller.abort();
   }, [selectedCategory]);
 
   useEffect(() => {
+    const controller = new AbortController();
     setLoading(true);
     setOffset(0);
     const params = new URLSearchParams();
@@ -75,13 +80,16 @@ export default function Home() {
     params.append("limit", "20");
     params.append("offset", "0");
 
-    fetch(`/api/products?${params}`)
+    fetch(`/api/products?${params}`, { signal: controller.signal })
       .then((res) => res.json())
       .then((data) => {
         setProducts(data.products);
         setTotal(data.total);
         setLoading(false);
-      });
+      })
+      .catch((err) => { if (err.name !== "AbortError") setLoading(false); });
+
+    return () => controller.abort();
   }, [search, selectedCategory, selectedSubCategory]);
 
   function handleLoadMore() {
@@ -100,7 +108,8 @@ export default function Home() {
         setProducts((prev) => [...prev, ...data.products]);
         setOffset(newOffset);
         setLoadingMore(false);
-      });
+      })
+      .catch(() => setLoadingMore(false));
   }
 
   return (
