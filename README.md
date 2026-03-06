@@ -4,6 +4,28 @@
 
 This document covers all bug fixes, security improvements, and enhancements made to the web pages.
 
+## Table of Contents
+
+**Functional Bugs**
+- [Bug 1: Invalid `next/image` src hostname for Amazon CDN](#bug-1-invalid-nextimage-src-hostname-for-amazon-cdn)
+- [Bug 2: Subcategories fetch ignores selected category](#bug-2-subcategories-fetch-ignores-selected-category)
+- [Bug 3: `useSearchParams` used without a Suspense boundary](#bug-3-usesearchparams-used-without-a-suspense-boundary)
+- [Bug 4: TypeError when `imageUrls` or `featureBullets` is null](#bug-4-typeerror-when-imageurls-or-featurebullets-is-null)
+- [Bug 5: Fetch calls missing error handling and race condition protection](#bug-5-fetch-calls-missing-error-handling-and-race-condition-protection)
+
+**UX Bugs**
+- [Bug 5: "Clear Filters" does not reset dropdown display](#bug-5-clear-filters-does-not-reset-dropdown-display)
+
+**Security Vulnerabilities**
+- [Security Fix 1: Unbounded `limit` parameter](#security-fix-1-unbounded-limit-parameter)
+- [Security Fix 2: Product data spoofing via URL](#security-fix-2-product-data-spoofing-via-url)
+
+**Enhancements**
+- [Enhancement 1: Product card layout alignment](#enhancement-1-product-card-layout-alignment)
+- [Enhancement 2: Paginated product listing with "Show More"](#enhancement-2-paginated-product-listing-with-show-more)
+- [Enhancement 3: Category heading in product listing](#enhancement-3-category-heading-in-product-listing)
+- [Enhancement 4: Retail price display](#enhancement-4-retail-price-display)
+
 ---
 
 ## Functional Bugs
