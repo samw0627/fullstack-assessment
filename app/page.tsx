@@ -43,6 +43,9 @@ export default function Home() {
     string | undefined
   >(undefined);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [offset, setOffset] = useState(0);
+  const [total, setTotal] = useState(0);
 
   useEffect(() => {
     fetch("/api/categories")
@@ -51,31 +54,53 @@ export default function Home() {
   }, []);
 
   useEffect(() => {
+    setSelectedSubCategory(undefined);
     if (selectedCategory) {
-      fetch(`/api/subcategories`)
+      fetch(`/api/subcategories?category=${encodeURIComponent(selectedCategory)}`)
         .then((res) => res.json())
         .then((data) => setSubCategories(data.subCategories));
     } else {
       setSubCategories([]);
-      setSelectedSubCategory(undefined);
     }
   }, [selectedCategory]);
 
   useEffect(() => {
     setLoading(true);
+    setOffset(0);
     const params = new URLSearchParams();
     if (search) params.append("search", search);
     if (selectedCategory) params.append("category", selectedCategory);
     if (selectedSubCategory) params.append("subCategory", selectedSubCategory);
     params.append("limit", "20");
+    params.append("offset", "0");
 
     fetch(`/api/products?${params}`)
       .then((res) => res.json())
       .then((data) => {
         setProducts(data.products);
+        setTotal(data.total);
         setLoading(false);
       });
   }, [search, selectedCategory, selectedSubCategory]);
+
+  function handleLoadMore() {
+    const newOffset = offset + 20;
+    setLoadingMore(true);
+    const params = new URLSearchParams();
+    if (search) params.append("search", search);
+    if (selectedCategory) params.append("category", selectedCategory);
+    if (selectedSubCategory) params.append("subCategory", selectedSubCategory);
+    params.append("limit", "20");
+    params.append("offset", String(newOffset));
+
+    fetch(`/api/products?${params}`)
+      .then((res) => res.json())
+      .then((data) => {
+        setProducts((prev) => [...prev, ...data.products]);
+        setOffset(newOffset);
+        setLoadingMore(false);
+      });
+  }
 
   return (
     <div className="min-h-screen bg-background">
@@ -95,7 +120,7 @@ export default function Home() {
             </div>
 
             <Select
-              value={selectedCategory}
+              value={selectedCategory ?? ""}
               onValueChange={(value) => setSelectedCategory(value || undefined)}
             >
               <SelectTrigger className="w-full md:w-[200px]">
@@ -112,7 +137,7 @@ export default function Home() {
 
             {selectedCategory && subCategories.length > 0 && (
               <Select
-                value={selectedSubCategory}
+                value={selectedSubCategory ?? ""}
                 onValueChange={(value) =>
                   setSelectedSubCategory(value || undefined)
                 }
@@ -158,7 +183,7 @@ export default function Home() {
         ) : (
           <>
             <p className="text-sm text-muted-foreground mb-4">
-              Showing {products.length} products
+              Showing {products.length} of {total} products
             </p>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
               {products.map((product) => (
@@ -169,10 +194,10 @@ export default function Home() {
                     query: { product: JSON.stringify(product) },
                   }}
                 >
-                  <Card className="h-full hover:shadow-lg transition-shadow cursor-pointer">
+                  <Card className="h-full flex flex-col hover:shadow-lg transition-shadow cursor-pointer">
                     <CardHeader className="p-0">
                       <div className="relative h-48 w-full overflow-hidden rounded-t-lg bg-muted">
-                        {product.imageUrls[0] && (
+                        {product.imageUrls?.[0] && (
                           <Image
                             src={product.imageUrls[0]}
                             alt={product.title}
@@ -183,11 +208,11 @@ export default function Home() {
                         )}
                       </div>
                     </CardHeader>
-                    <CardContent className="pt-4">
+                    <CardContent className="pt-4 flex-1">
                       <CardTitle className="text-base line-clamp-2 mb-2">
                         {product.title}
                       </CardTitle>
-                      <CardDescription className="flex gap-2 flex-wrap">
+                      <CardDescription className="flex gap-2 flex-wrap items-start mt-2">
                         <Badge variant="secondary">
                           {product.categoryName}
                         </Badge>
@@ -205,6 +230,17 @@ export default function Home() {
                 </Link>
               ))}
             </div>
+            {products.length < total && (
+              <div className="flex justify-center mt-8">
+                <Button
+                  variant="outline"
+                  onClick={handleLoadMore}
+                  disabled={loadingMore}
+                >
+                  {loadingMore ? "Loading..." : "Show More"}
+                </Button>
+              </div>
+            )}
           </>
         )}
       </main>
