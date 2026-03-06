@@ -13,6 +13,8 @@ These bugs are discovered through interacting with the different features of the
 
 ![Bug 1 Fix Screenshot](img/Bug1-fix.png)
 
+**File:** `next.config.ts`
+
 **Error:** `Invalid src prop` on `next/image` — hostname `images-na.ssl-images-amazon.com` not configured.
 
 **Root cause:** `next.config.ts` only allowlisted `m.media-amazon.com`. Some products use `images-na.ssl-images-amazon.com` as their image CDN, which was not in `remotePatterns`.
@@ -45,6 +47,8 @@ fetch(`/api/subcategories?category=${encodeURIComponent(selectedCategory)}`)
 
 ### Bug 3: `useSearchParams` used without a Suspense boundary
 
+**File:** `app/product/page.tsx`
+
 **Error:** `useSearchParams() should be wrapped in a suspense boundary at page "/product"`
 
 **Root cause:** `app/product/page.tsx` called `useSearchParams()` directly in the page component with no `<Suspense>` parent. In Next.js 15 App Router, components using `useSearchParams()` must be wrapped in `<Suspense>` . Without it, Next.js throws during static rendering because the server has no access to URL search params at build time.
@@ -54,6 +58,8 @@ fetch(`/api/subcategories?category=${encodeURIComponent(selectedCategory)}`)
 ---
 
 ### Bug 4: TypeError when `imageUrls` or `featureBullets` is null
+
+**Files:** `app/page.tsx`, `app/product/page.tsx`
 
 **Error:** `Cannot read properties of undefined (reading '0')` at `product.imageUrls[0]`
 
@@ -96,6 +102,8 @@ These bugs are discovered through interacting with the different features of the
 
 
 ### Bug 5: "Clear Filters" does not reset dropdown display
+
+**File:** `app/page.tsx`
 
 **Error:** Clicking "Clear Filters" clears React state and re-fetches unfiltered products, but the category and subcategory dropdowns continue showing the previously selected values.
 
