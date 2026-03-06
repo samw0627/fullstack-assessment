@@ -17,6 +17,7 @@ interface Product {
   imageUrls: string[];
   featureBullets: string[];
   retailerSku: string;
+  retailPrice: number;
 }
 
 export default function ProductPage() {
@@ -29,20 +30,37 @@ export default function ProductPage() {
 
 function ProductPageInner() {
   const searchParams = useSearchParams();
-  const productParam = searchParams.get('product');
+  const sku = searchParams.get('sku');
   const [product, setProduct] = useState<Product | null>(null);
+  const [loading, setLoading] = useState(true);
   const [selectedImage, setSelectedImage] = useState(0);
 
   useEffect(() => {
-    if (productParam) {
-      try {
-        const parsedProduct = JSON.parse(productParam);
-        setProduct(parsedProduct);
-      } catch (error) {
-        console.error('Failed to parse product data:', error);
-      }
+    if (sku) {
+      setLoading(true);
+      fetch(`/api/products/${encodeURIComponent(sku)}`)
+        .then((res) => {
+          if (!res.ok) throw new Error('Product not found');
+          return res.json();
+        })
+        .then((data) => {
+          setProduct(data);
+          setLoading(false);
+        })
+        .catch(() => {
+          setProduct(null);
+          setLoading(false);
+        });
     }
-  }, [productParam]);
+  }, [sku]);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <p className="text-muted-foreground">Loading product...</p>
+      </div>
+    );
+  }
 
   if (!product) {
     return (
@@ -115,19 +133,23 @@ function ProductPageInner() {
           </div>
 
           <div className="space-y-6">
+            <Card>
+            <CardContent className="pt-6">
             <div>
               <div className="flex gap-2 mb-2">
                 <Badge variant="secondary">{product.categoryName}</Badge>
                 <Badge variant="outline">{product.subCategoryName}</Badge>
               </div>
               <h1 className="text-3xl font-bold mb-2">{product.title}</h1>
+              {product.retailPrice && (
+                <p className="text-2xl font-semibold text-primary mb-1">${product.retailPrice.toFixed(2)}</p>
+              )}
               <p className="text-sm text-muted-foreground">SKU: {product.retailerSku}</p>
             </div>
 
             {(product.featureBullets?.length ?? 0) > 0 && (
-              <Card>
-                <CardContent className="pt-6">
-                  <h2 className="text-lg font-semibold mb-3">Features</h2>
+                <>
+                 <h2 className="text-lg font-semibold mb-3">Features</h2>
                   <ul className="space-y-2">
                     {product.featureBullets.map((feature, idx) => (
                       <li key={idx} className="flex items-start">
@@ -136,9 +158,10 @@ function ProductPageInner() {
                       </li>
                     ))}
                   </ul>
-                </CardContent>
-              </Card>
+                </>
             )}
+             </CardContent>
+            </Card>
           </div>
         </div>
       </div>

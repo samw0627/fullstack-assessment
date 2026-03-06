@@ -29,6 +29,7 @@ interface Product {
   categoryName: string;
   subCategoryName: string;
   imageUrls: string[];
+  retailPrice: number;
 }
 
 export default function Home() {
@@ -182,6 +183,11 @@ export default function Home() {
           </div>
         ) : (
           <>
+            {selectedCategory && (
+              <h2 className="text-2xl font-semibold mb-2">
+                {selectedSubCategory ? `${selectedCategory} — ${selectedSubCategory}` : selectedCategory}
+              </h2>
+            )}
             <p className="text-sm text-muted-foreground mb-4">
               Showing {products.length} of {total} products
             </p>
@@ -191,7 +197,7 @@ export default function Home() {
                   key={product.stacklineSku}
                   href={{
                     pathname: "/product",
-                    query: { product: JSON.stringify(product) },
+                    query: { sku: product.stacklineSku },
                   }}
                 >
                   <Card className="h-full flex flex-col hover:shadow-lg transition-shadow cursor-pointer">
@@ -221,7 +227,10 @@ export default function Home() {
                         </Badge>
                       </CardDescription>
                     </CardContent>
-                    <CardFooter>
+                    <CardFooter className="flex flex-col gap-2">
+                      {product.retailPrice && (
+                        <p className="text-lg font-semibold w-full">${product.retailPrice.toFixed(2)}</p>
+                      )}
                       <Button variant="outline" className="w-full">
                         View Details
                       </Button>

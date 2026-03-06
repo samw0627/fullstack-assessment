@@ -1,75 +1,143 @@
 # Stackline Full Stack Assignment
 
-## System Bugs
+## Overview
 
-## Bug 1: Invalid `next/image` src hostname for Amazon CDN
+This document covers all bug fixes, security improvements, and enhancements made to the application.
+
+---
+
+## Functional Bugs
+
+### Bug 1: Invalid `next/image` src hostname for Amazon CDN
+
+![Bug 1 Fix Screenshot](img/Bug1-fix.png)
 
 **Error:** `Invalid src prop` on `next/image` — hostname `images-na.ssl-images-amazon.com` not configured.
 
 **Root cause:** `next.config.ts` only allowlisted `m.media-amazon.com`. Some products use `images-na.ssl-images-amazon.com` as their image CDN, which was not in `remotePatterns`.
 
-**Fix:** Added `images-na.ssl-images-amazon.com` to the `remotePatterns` array in `next.config.ts`. 
+**Fix:** Added `images-na.ssl-images-amazon.com` to the `remotePatterns` array in `next.config.ts`.
 
-**Justification for approach:** The error message itself dictates the fix — Next.js explicitly requires all external image hostnames to be allowlisted in remotePatterns for security (prevents your image optimization endpoint from being abused as an open proxy).                                                                               
-   
-The only decision was where to handle it:                                            
-                  
-  1. remotePatterns in next.config.ts (chosen) — the correct, idiomatic Next.js approach. Minimal change,
-  no application logic touched.
-  2. Replace <Image> with <img> — would silence the error but lose Next.js image optimization (lazy
-  loading, format conversion, resizing). Worse outcome.
+---
 
+### Bug 2: Subcategories fetch ignores selected category
 
-## Bug 2: Subcategories fetch ignores selected category
-  File: app/page tsx:55                                       
-                  
-  fetch(`/api/subcategories`)  // ← missing ?category= param
+![Bug 2 Fix Screenshot](img/Bug2-fix.png)
 
-  The selectedCategory state is never sent to the API, so subcategories always returns all subcategories
-  across every category instead of filtering by the selected one. Should be:
-  fetch(`/api/subcategories?category=${encodeURIComponent(selectedCategory)}`)
+**File:** `app/page.tsx:55`
 
-## Bug 3: `useSearchParams` used without a Suspense boundary
+**Root cause:** The subcategories fetch was called without a `?category=` query param:
+
+```ts
+fetch(`/api/subcategories`) // ← missing ?category= param
+```
+
+As a result, `selectedCategory` state was never sent to the API, so subcategories always returned results across every category rather than filtering by the selected one.
+
+**Fix:** Updated the fetch to include the selected category:
+
+```ts
+fetch(`/api/subcategories?category=${encodeURIComponent(selectedCategory)}`)
+```
+
+---
+
+### Bug 3: `useSearchParams` used without a Suspense boundary
 
 **Error:** `useSearchParams() should be wrapped in a suspense boundary at page "/product"`
 
-**Root cause:** `app/product/page.tsx` called `useSearchParams()` directly in the page component with no `<Suspense>` parent. In Next.js 15 App Router, components using `useSearchParams()` must be wrapped in `<Suspense>` — without it, Next.js throws during static rendering/build because the server has no access to URL search params.
+**Root cause:** `app/product/page.tsx` called `useSearchParams()` directly in the page component with no `<Suspense>` parent. In Next.js 15 App Router, components using `useSearchParams()` must be wrapped in `<Suspense>` . Without it, Next.js throws during static rendering because the server has no access to URL search params at build time.
 
 **Fix:** Split the page into two components in `app/product/page.tsx`. The exported `ProductPage` is a thin shell that wraps `<ProductPageInner>` in a `<Suspense>` boundary. All existing logic (state, `useSearchParams`, JSX) lives in `ProductPageInner`.
 
-## Bug 4: Clear Filters does not reset dropdown display
+---
 
-**Error:** Clicking "Clear Filters" clears React state and re-fetches unfiltered products, but the category and subcategory dropdowns continue showing the previously selected values.
+### Bug 4: TypeError when `imageUrls` or `featureBullets` is null
 
-**Root cause:** shadcn/ui `<Select>` is backed by Radix UI, which treats `value={undefined}` as a signal to switch from controlled to uncontrolled mode. Once uncontrolled, Radix ignores further `value` prop changes and preserves its last internal display value. The clear handler sets state to `undefined`, which propagates to the `value` prop and silently hands control back to Radix's internal state.
-
-**Fix:** Changed `value={selectedCategory}` and `value={selectedSubCategory}` to `value={selectedCategory ?? ""}` and `value={selectedSubCategory ?? ""}` in `app/page.tsx`. Passing `""` keeps the component controlled at all times. Since no `<SelectItem>` has `value=""`, Radix correctly falls back to rendering the placeholder when the state is cleared.
-
-## Bug 5: Changing top-level category briefly shows "No products found"
-
-**Error:** When the user switches from one category to another while a subcategory is selected, the product list shows "No products found" instead of products for the new category.
-
-**Root cause:** The subcategories `useEffect` only reset `selectedSubCategory` in the `else` branch (when category is cleared). When switching between categories, the stale subcategory value was never cleared. The products `useEffect` fires immediately with `new category + old subcategory`, which matches no products. The subcategory reset never happened so no subsequent fetch corrected it.
-
-**Fix:** Moved `setSelectedSubCategory(undefined)` to the top of the `useEffect`, outside the `if/else`, so it runs unconditionally whenever `selectedCategory` changes — whether switching to a new category or clearing it entirely.
-
-## Bug 6: TypeError when `imageUrls` or `featureBullets` is null on a product
-
-**Error:** `Cannot read properties of undefined (reading '0')` at `product.imageUrls[0]` in `app/page.tsx` and equivalent crashes in `app/product/page.tsx`.
+**Error:** `Cannot read properties of undefined (reading '0')` at `product.imageUrls[0]`
 
 **Root cause:** Some products in the dataset have `null` or missing `imageUrls` and `featureBullets` fields. Directly accessing `[index]` or `.length` on `null`/`undefined` throws a TypeError at runtime.
 
 **Fix:** Applied optional chaining (`?.`) to all unsafe accesses across both pages:
+
 - `app/page.tsx` — `product.imageUrls[0]` → `product.imageUrls?.[0]`
-- `app/product/page.tsx` — `product.imageUrls[selectedImage]` → `product.imageUrls?.[selectedImage]`; `product.imageUrls.length` → `product.imageUrls?.length ?? 0`; `product.featureBullets.length` → `product.featureBullets?.length ?? 0`
+- `app/product/page.tsx`:
+  - `product.imageUrls[selectedImage]` → `product.imageUrls?.[selectedImage]`
+  - `product.imageUrls.length` → `product.imageUrls?.length ?? 0`
+  - `product.featureBullets.length` → `product.featureBullets?.length ?? 0`
 
-Optional chaining short-circuits to `undefined` when the value is null/undefined, which is falsy and safely skips the render without throwing.
+Optional chaining short-circuits to `undefined` when the left-hand value is null/undefined, which is falsy and safely skips rendering without throwing.
 
-## Enhancement 2: Paginated product listing with "Show More" (`app/page.tsx`)
+---
+
+## UX Bugs
+
+### Bug 5: "Clear Filters" does not reset dropdown display
+
+**Error:** Clicking "Clear Filters" clears React state and re-fetches unfiltered products, but the category and subcategory dropdowns continue showing the previously selected values.
+
+**Root cause:** The shadcn/ui `<Select>` component is backed by Radix UI, which treats `value={undefined}` as a signal to switch from controlled to uncontrolled mode. Once uncontrolled, Radix ignores further `value` prop changes and preserves its last internal display value. The clear handler was setting state to `undefined`, which propagated to the `value` prop and silently handed control back to Radix's internal state.
+
+**Fix:** Changed `value={selectedCategory}` and `value={selectedSubCategory}` to use a nullish coalescing fallback in `app/page.tsx`:
+
+```tsx
+value={selectedCategory ?? ""}
+value={selectedSubCategory ?? ""}
+```
+
+Passing `""` keeps the component controlled at all times. Since no `<SelectItem>` has `value=""`, Radix correctly falls back to rendering the placeholder when state is cleared.
+
+---
+
+## Security Vulnerabilities
+
+### Security Fix 1: Unbounded `limit` parameter
+
+**File:** `app/api/products/route.ts`
+
+**Risk:** Any caller could pass `?limit=999999` to force the server to serialize the entire dataset in a single response, causing unnecessary CPU and memory load.
+
+**Fix:** Capped the parsed limit with `Math.min(..., 100)` so no request can exceed 100 products regardless of the query param value.
+
+---
+
+### Security Fix 2: Product data spoofing via URL
+
+**Files:** `app/page.tsx`, `app/product/page.tsx`
+
+**Risk:** The product detail page previously parsed and trusted a full product JSON object from the URL (`?product=...`). An attacker could craft a URL with fabricated product data (false titles, misleading descriptions, injected image URLs) and share it as a phishing link — the page would render it as legitimate.
+
+**Fix:**
+- `app/page.tsx`: Links now pass only `?sku=<stacklineSku>` instead of the full serialized product.
+- `app/product/page.tsx`: The detail page reads the `sku` param and fetches the canonical product from `/api/products/[sku]`. The server is now the single source of truth for all product data.
+
+---
+
+
+## Enhancements
+
+### Enhancement 1: Product card layout alignment
+![Enhancement 1 Screenshot](img/Enhance1.png)
+
+**File:** `app/page.tsx`
+
+**Problem:** "View Details" buttons were misaligned across cards with different title lengths. Category/subcategory badges were visually cramped and could stretch incorrectly inside the card.
+
+**Changes:**
+- Added `flex flex-col` to `Card` — establishes a vertical flex layout so children stack correctly and the footer can be anchored to the bottom.
+- Added `flex-1` to `CardContent` — allows the content area to grow and fill available space, pushing `CardFooter` to the bottom consistently across all cards regardless of title length.
+- Added `items-start mt-2` to the badge container (`CardDescription`) — prevents badges from stretching to fill the flex container height, and adds consistent spacing between the title and badges.
+
+---
+
+### Enhancement 2: Paginated product listing with "Show More"
+![Enhancement 2 Screenshot](img/Enhance2.png)
+
+**File:** `app/page.tsx`
 
 **Problem:** The product listing was hardcoded to fetch and display only 20 items with no way to load more.
 
-**Changes made:**
+**Changes:**
 - Added `total` state populated from `data.total` in the API response to track how many products match the current filters.
 - Added `offset` state, reset to `0` on every filter change and incremented by 20 on each "Show More" click.
 - Added `loadingMore` state, separate from the initial `loading` state, so the page spinner and the "Show More" button disabled state don't interfere with each other.
@@ -77,19 +145,33 @@ Optional chaining short-circuits to `undefined` when the value is null/undefined
 - Added a "Show More" button below the product grid, visible only when `products.length < total` and auto-hidden once all results are loaded.
 - Updated the count label from `Showing X products` to `Showing X of Y products`.
 
-**Design decision:** Filter-driven fetches stay in the `useEffect` (always replace products and reset offset). "Show More" uses an explicit handler (always appends). This avoids a race condition where changing filters while `offset > 0` would otherwise trigger two competing fetches.
+**Design decision:** Filter-driven fetches stay in the `useEffect` (always replace products and reset offset). "Show More" uses an explicit handler (always appends). This separation avoids a race condition where changing filters while `offset > 0` would otherwise trigger two competing fetches.
 
-## Usability Issues
-## Usability Issue 1: Filtering system
+---
 
-## Enhancements
+### Enhancement 3: Category heading in product listing
+![Enhancement 3 Screenshot](img/Enhance3.png)
 
-## Enhancement 1: Product card layout alignment (`app/page.tsx`)
+**File:** `app/page.tsx`
 
-**Problem:** "View Details" buttons were misaligned across cards with different title lengths. Category/subcategory badges were visually cramped and could stretch incorrectly inside the card.
+**Problem:** When a category or subcategory was selected, there was no visual indication in the main content area of what was being browsed.
 
-**Changes made:**
-- Added `flex flex-col` to `Card` — establishes a vertical flex layout so children stack correctly and the footer can be anchored to the bottom.
-- Added `flex-1` to `CardContent` — allows the content area to grow and fill available space, pushing `CardFooter` to the bottom consistently across all cards regardless of title length.
-- Added `items-start mt-2` to the badge container (`CardDescription`) — prevents badges from stretching to the full height of the flex container, and adds consistent spacing between the title and the badges.
+**Change:** Added a dynamic `<h2>` heading above the product count that renders only when a category is selected. It displays the category name alone, or `Category — Subcategory` when a subcategory is also active, and is hidden entirely when no category is selected.
+
+---
+
+### Enhancement 4: Retail price display
+![Enhancement 4 Screenshot](img/Enhance4.png)
+
+
+**Files:** `app/page.tsx`, `app/product/page.tsx`, `lib/products.ts`
+
+**Discovery:** All 500 products in `sample-products.json` contain a `retailPrice` field (range: $1–$1,699.99) that was not being surfaced in the UI.
+
+**Changes:**
+- Added `retailPrice: number` to the `Product` interface in `lib/products.ts` so the field is included in all API responses.
+- Added `retailPrice` to the local `Product` interfaces in both page files.
+- **Listing page** (`app/page.tsx`): Price rendered as `$XX.XX` in the card footer above the "View Details" button.
+- **Detail page** (`app/product/page.tsx`): Price rendered prominently in `text-primary` below the product title.
+- Both render sites guard with `product.retailPrice &&` defensively for forward compatibility.
 
