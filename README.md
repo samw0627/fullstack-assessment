@@ -95,7 +95,7 @@ Optional chaining short-circuits to `undefined` when the left-hand value is null
 These bugs are discovered through interacting with the different features of the webpage.
 
 
-### Bug 5: "Clear Filters" does not reset dropdown display
+### Bug 6: "Clear Filters" does not reset dropdown display
 
 **Error:** Clicking "Clear Filters" clears React state and re-fetches unfiltered products, but the category and subcategory dropdowns continue showing the previously selected values.
 
