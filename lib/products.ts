@@ -8,6 +8,7 @@ export interface Product {
   title: string;
   categoryName: string;
   retailerSku: string;
+  retailPrice: number;
   categoryId: number;
   subCategoryName: string;
 }
