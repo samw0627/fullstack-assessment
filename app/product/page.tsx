@@ -5,9 +5,10 @@ import { useSearchParams } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, Minus, Plus, ShoppingCart } from 'lucide-react';
 import Link from 'next/link';
 import Image from 'next/image';
+import { useCart } from '@/context/CartContext';
 
 interface Product {
   stacklineSku: string;
@@ -34,6 +35,8 @@ function ProductPageInner() {
   const [product, setProduct] = useState<Product | null>(null);
   const [loading, setLoading] = useState(true);
   const [selectedImage, setSelectedImage] = useState(0);
+  const [quantity, setQuantity] = useState(1);
+  const { addToCart } = useCart();
 
   useEffect(() => {
     if (sku) {
@@ -146,6 +149,49 @@ function ProductPageInner() {
               )}
               <p className="text-sm text-muted-foreground">SKU: {product.retailerSku}</p>
             </div>
+
+            <div className="flex items-center gap-3 mt-4">
+              <span className="text-sm font-medium">Quantity</span>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="icon"
+                  className="h-8 w-8"
+                  onClick={() => setQuantity((q) => Math.max(1, q - 1))}
+                  aria-label="Decrease quantity"
+                >
+                  <Minus className="h-3 w-3" />
+                </Button>
+                <span className="w-8 text-center tabular-nums font-medium">{quantity}</span>
+                <Button
+                  variant="outline"
+                  size="icon"
+                  className="h-8 w-8"
+                  onClick={() => setQuantity((q) => q + 1)}
+                  aria-label="Increase quantity"
+                >
+                  <Plus className="h-3 w-3" />
+                </Button>
+              </div>
+            </div>
+
+            <Button
+              className="w-full mt-4"
+              onClick={() =>
+                addToCart(
+                  {
+                    sku: product.stacklineSku,
+                    title: product.title,
+                    retailPrice: product.retailPrice,
+                    imageUrl: product.imageUrls?.[0] ?? "",
+                  },
+                  quantity
+                )
+              }
+            >
+              <ShoppingCart className="mr-2 h-4 w-4" />
+              Add to Cart
+            </Button>
 
             {(product.featureBullets?.length ?? 0) > 0 && (
                 <>
