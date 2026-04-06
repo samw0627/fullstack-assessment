@@ -119,13 +119,13 @@ export default function Home() {
           <h1 className="text-4xl font-bold mb-6">StackShop</h1>
 
           <div className="flex flex-col md:flex-row gap-4 mb-4">
-            <div className="relative flex-1">
-              <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+            <div className="flex items-center flex-1 border rounded-md px-3 gap-2 bg-background focus-within:ring-1 focus-within:ring-ring">
+              <Search className="h-4 w-4 text-muted-foreground shrink-0" />
               <Input
                 placeholder="Search products..."
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                className="pl-10"
+                className="border-0 p-0 shadow-none focus-visible:ring-0"
               />
             </div>
 
